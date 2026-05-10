@@ -38,21 +38,96 @@
 #include <fstream>
 #include <cstdlib>
 #include <math.h>
+#include <limits.h>
+#include <sys/stat.h>
+
+#ifdef _WIN32
+#include <direct.h>
+#else
+#include <unistd.h>
+#endif
 
 // Windows (includes 32-Bit and 64-Bit Versions)
 #ifdef _WIN32
 	#define WINDOWS					true
 	#define UNIX					false
-	#define PATH_IN					"C:\\Users\\e11\\Downloads\\NeuralNet-master\\MNIST_DATA\\"
-	#define PATH_OUT				"C:\\Users\\e11\\Downloads\\netTEST"
 // Unix like Systems (__Apple__ includes Mac OS X and iOS)
 // (Does not include ALL(!) the BSD and Linux distributions)
 #elif __APPLE__ || __FreeBSD__ || __linux__
 	#define WINDOWS					false
 	#define UNIX					true
-	#define PATH_IN					"/Users/peter/Documents/github/C++/NeuralNet_MNIST/MNIST_DATA/"
-	#define PATH_OUT				"/Users/peter/Desktop/netTEST"
 #endif
+
+namespace PathConfig {
+    inline bool directoryExists(const std::string& path) {
+        struct stat info {};
+        return stat(path.c_str(), &info) == 0 && (info.st_mode & S_IFDIR);
+    }
+
+    inline bool ensureDirectory(const std::string& path) {
+        if(directoryExists(path)) { return true; }
+#ifdef _WIN32
+        return _mkdir(path.c_str()) == 0;
+#else
+        return mkdir(path.c_str(), 0755) == 0;
+#endif
+    }
+
+    inline std::string joinPath(const std::string& base, const std::string& child) {
+        if(base.empty()) { return child; }
+        const bool hasTrailingSlash = (base.back() == '/' || base.back() == '\\');
+        return hasTrailingSlash ? (base + child) : (base + "/" + child);
+    }
+
+    inline std::string parentPath(const std::string& path) {
+        const auto pos = path.find_last_of("/\\");
+        if(pos == std::string::npos) { return path; }
+        if(pos == 0) { return path.substr(0, 1); }
+        return path.substr(0, pos);
+    }
+
+    inline std::string currentWorkingDirectory() {
+        char buffer[PATH_MAX] = {0};
+#ifdef _WIN32
+        return (_getcwd(buffer, PATH_MAX) != nullptr) ? std::string(buffer) : std::string(".");
+#else
+        return (getcwd(buffer, PATH_MAX) != nullptr) ? std::string(buffer) : std::string(".");
+#endif
+    }
+
+    inline std::string projectRootDirectory() {
+        std::string current = currentWorkingDirectory();
+
+        while(true) {
+            if(directoryExists(joinPath(current, "MNIST_DATA")) && directoryExists(joinPath(current, "src"))) {
+                return current;
+            }
+
+            const std::string parent = parentPath(current);
+            if(parent == current) { break; }
+            current = parent;
+        }
+
+        return currentWorkingDirectory();
+    }
+
+    inline const std::string& pathIn() {
+        static const std::string value = joinPath(projectRootDirectory(), "MNIST_DATA") + "/";
+        return value;
+    }
+
+    inline const std::string& pathOut() {
+        static const std::string value = []() {
+            const std::string dir = joinPath(projectRootDirectory(), "netTEST");
+            (void)ensureDirectory(dir);
+            return dir;
+        }();
+        return value;
+    }
+}
+
+#define PATH_IN                     (PathConfig::pathIn().c_str())
+#define PATH_OUT                    (PathConfig::pathOut().c_str())
 
 
 //  784N Input Layer / 1x 120N Hidden Layer / 10N Output Layer

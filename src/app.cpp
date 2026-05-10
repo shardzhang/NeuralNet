@@ -67,8 +67,8 @@ int main() {
     netVec.Train(TRAINING_ITER, mnistInput, mnistOutput);
     const auto t4 = steady_clock::now();
     
-    netOOP.test(mnist, std::string(PATH_OUT) + "OOP.txt");
-    netVec.test(mnist, std::string(PATH_OUT) + "VEC.txt");
+    netOOP.test(mnist, std::string(PATH_OUT) + "/OOP.txt");
+    netVec.test(mnist, std::string(PATH_OUT) + "/VEC.txt");
     
     cout << "NeuralNet OOP training time:\t" <<duration_cast<seconds>(t2 - t1).count() <<" sec." <<endl;
     cout << "NeuralNet VEC training time:\t" <<duration_cast<seconds>(t4 - t3).count() <<" sec." <<endl;
